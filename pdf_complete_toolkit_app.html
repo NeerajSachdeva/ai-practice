@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Complete PDF Toolkit</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;margin:0;min-height:100vh;display:flex;justify-content:center;align-items:flex-start;background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);padding:20px}
+.card{background:#fff;width:100%;max-width:700px;border-radius:16px;padding:28px;margin-top:20px;box-shadow:0 20px 45px rgba(0,0,0,.25);transition:all .3s ease}
+.card:hover{transform:translateY(-3px);box-shadow:0 25px 50px rgba(0,0,0,.3)}
+h2{text-align:center;margin-top:0;margin-bottom:20px;color:#2c5364}
+.drop-area{border:2px dashed #ccc;border-radius:12px;padding:30px;text-align:center;cursor:pointer;transition:.25s}
+.drop-area.dragover{border-color:#2c5364;background:#f4f8fa}
+input[type=file]{display:none}
+.file-list{margin-top:15px;font-size:14px}
+.file-item{padding:6px 8px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}
+.file-item span{flex-grow:1;margin-left:8px}
+button{width:100%;margin-top:18px;padding:12px;border:none;border-radius:8px;background:#2c5364;color:white;font-size:16px;cursor:pointer;transition:.25s}
+button:hover{background:#1f3b4a;transform:translateY(-1px)}
+.result{margin-top:20px;text-align:center;opacity:0;transform:translateY(10px);transition:.35s}
+.result.show{opacity:1;transform:translateY(0)}
+.download-btn{background:#27ae60;margin-top:10px}
+.download-btn:hover{background:#1e874b}
+.filename-input{width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;margin-top:10px}
+.note{margin-top:10px;font-size:12px;color:#666;text-align:center}
+.remove-btn{background:#e74c3c;color:white;border:none;border-radius:4px;padding:4px 8px;cursor:pointer}
+.remove-btn:hover{background:#c0392b}
+.order-controls button{margin-left:4px;padding:3px 6px;font-size:12px}
+.tabs{display:flex;gap:10px;margin-bottom:20px}
+.tab{flex-grow:1;padding:10px;text-align:center;border-radius:8px;background:#eee;cursor:pointer;transition:.25s}
+.tab.active{background:#2c5364;color:white}
+@media(max-width:480px){.card{padding:22px}}
+</style>
+</head>
+<body>
+<div class="card">
+<h2>Complete PDF Toolkit</h2>
+<div class="tabs">
+<div class="tab active" data-tab="merge">Merge</div>
+<div class="tab" data-tab="split">Split</div>
+<div class="tab" data-tab="compress">Compress</div>
+<div class="tab" data-tab="extract">Extract</div>
+<div class="tab" data-tab="reorder">Reorder</div>
+</div>
+
+<!-- Merge PDFs -->
+<div id="mergeSection">
+<div class="drop-area" id="mergeDrop">Drop PDFs here or click to upload</div>
+<input type="file" id="mergeInput" accept="application/pdf" multiple>
+<div class="file-list" id="mergeFileList"></div>
+<label>Download file name</label>
+<input id="mergeFileName" class="filename-input" value="merged.pdf">
+<button id="mergeBtn">Merge PDFs</button>
+<button id="mergeReset">Reset</button>
+<div class="result" id="mergeResult">
+<a id="mergeDownloadLink"><button class="download-btn">Download PDF</button></a>
+</div>
+</div>
+
+<!-- Split PDFs -->
+<div id="splitSection" style="display:none;">
+<div class="drop-area" id="splitDrop">Drop PDF here or click to upload</div>
+<input type="file" id="splitInput" accept="application/pdf">
+<label>Split Page Range (3-8)</label>
+<input id="splitRange" type="text" placeholder="Optional">
+<label>OR Specific Pages (1,5,9)</label>
+<input id="splitPages" type="text" placeholder="Optional">
+<div class="options"><input type="checkbox" id="splitAll"> <span>Split ALL pages (ZIP)</span></div>
+<button id="splitBtn">Split PDF</button>
+<button id="splitReset">Reset</button>
+<div class="result" id="splitResult"><p id="splitResultText"></p>
+<a id="splitDownloadLink"><button class="download-btn">Download</button></a>
+</div>
+</div>
+
+<!-- Compress PDFs Placeholder -->
+<div id="compressSection" style="display:none;"><p style="text-align:center;color:#666">Compress PDFs feature coming soon.</p></div>
+<!-- Extract PDFs Placeholder -->
+<div id="extractSection" style="display:none;"><p style="text-align:center;color:#666">Extract pages feature coming soon.</p></div>
+<!-- Reorder PDFs Placeholder -->
+<div id="reorderSection" style="display:none;"><p style="text-align:center;color:#666">Visual reorder feature coming soon.</p></div>
+
+<p class="note">All files are processed locally in your browser.</p>
+<script>
+// Tabs
+const tabs=document.querySelectorAll('.tab');
+tabs.forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    tabs.forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('mergeSection').style.display=tab.dataset.tab==='merge'?'block':'none';
+    document.getElementById('splitSection').style.display=tab.dataset.tab==='split'?'block':'none';
+    document.getElementById('compressSection').style.display=tab.dataset.tab==='compress'?'block':'none';
+    document.getElementById('extractSection').style.display=tab.dataset.tab==='extract'?'block':'none';
+    document.getElementById('reorderSection').style.display=tab.dataset.tab==='reorder'?'block':'none';
+  });
+});
+// MERGE PDF LOGIC
+let mergeFiles=[];
+const mergeDrop=document.getElementById('mergeDrop');
+const mergeInput=document.getElementById('mergeInput');
+const mergeFileList=document.getElementById('mergeFileList');
+mergeDrop.addEventListener('click',()=>mergeInput.click());
+mergeInput.addEventListener('change',e=>{mergeFiles=[...e.target.files]; renderMergeList();});
+mergeDrop.addEventListener('dragover',e=>{e.preventDefault(); mergeDrop.classList.add('dragover');});
+mergeDrop.addEventListener('dragleave',()=>mergeDrop.classList.remove('dragover'));
+mergeDrop.addEventListener('drop',e=>{e.preventDefault(); mergeDrop.classList.remove('dragover'); mergeFiles=[...e.dataTransfer.files].filter(f=>f.type==='application/pdf'); renderMergeList();});
+function renderMergeList(){mergeFileList.innerHTML=''; mergeFiles.forEach((file,index)=>{const div=document.createElement('div'); div.className='file-item'; div.innerHTML=`<span>${index+1}. ${file.name}</span> <span class='order-controls'><button onclick='moveUp(${index})'>▲</button><button onclick='moveDown(${index})'>▼</button><button class='remove-btn' onclick='removeFile(${index})'>Remove</button></span>`; mergeFileList.appendChild(div);});}
+function moveUp(i){if(i===0)return;[mergeFiles[i-1],mergeFiles[i]]=[mergeFiles[i],mergeFiles[i-1]];renderMergeList();}
+function moveDown(i){if(i===mergeFiles.length-1)return;[mergeFiles[i+1],mergeFiles[i]]=[mergeFiles[i],mergeFiles[i+1]];renderMergeList();}
+function removeFile(i){mergeFiles.splice(i,1);renderMergeList();}
+document.getElementById('mergeReset').addEventListener('click',()=>{mergeFiles=[];renderMergeList();document.getElementById('mergeFileName').value='merged.pdf';document.getElementById('mergeResult').classList.remove('show');});
+document.getElementById('mergeBtn').addEventListener('click',async()=>{if(mergeFiles.length===0){alert('Upload PDFs'); return;}const {PDFDocument}=PDFLib;const mergedPdf=await PDFDocument.create();for(const file of mergeFiles){const bytes=await file.arrayBuffer(); const pdf=await PDFDocument.load(bytes); const pages=await mergedPdf.copyPages(pdf,pdf.getPageIndices()); pages.forEach(p=>mergedPdf.addPage(p));}const mergedBytes=await mergedPdf.save();const blob=new Blob([mergedBytes],{type:'application/pdf'});const url=URL.createObjectURL(blob);const link=document.getElementById('mergeDownloadLink');let filename=document.getElementById('mergeFileName').value||'merged.pdf';link.href=url; link.download=filename.endsWith('.pdf')?filename:filename+'.pdf';document.getElementById('mergeResult').classList.add('show');});
+// SPLIT PDF LOGIC
+let splitFile=null;
+const splitDrop=document.getElementById('splitDrop');
+const splitInput=document.getElementById('splitInput');
+splitDrop.addEventListener('click',()=>splitInput.click());
+splitInput.addEventListener('change',e=>{splitFile=e.target.files[0];if(splitFile) splitDrop.innerText=splitFile.name;});
+splitDrop.addEventListener('dragover',e=>{e.preventDefault();splitDrop.classList.add('dragover');});
+splitDrop.addEventListener('dragleave',()=>splitDrop.classList.remove('dragover'));
+splitDrop.addEventListener('drop',e=>{e.preventDefault();splitDrop.classList.remove('dragover'); const file=e.dataTransfer.files[0]; if(file && file.type==='application/pdf'){splitFile=file; splitDrop.innerText=file.name;}});
+document.getElementById('splitReset').addEventListener('click',()=>{splitFile=null;splitDrop.innerText='Drop PDF here or click to upload'; document.getElementById('splitRange').value=''; document.getElementById('splitPages').value=''; document.getElementById('splitAll').checked=false; document.getElementById('splitResult').classList.remove('show');});
+document.getElementById('splitBtn').addEventListener('click',async()=>{if(!splitFile){alert('Upload PDF'); return;}const {PDFDocument}=PDFLib;const zip=new JSZip();const bytes=await splitFile.arrayBuffer();const pdfDoc=await PDFDocument.load(bytes);const totalPages=pdfDoc.getPageCount();const range=document.getElementById('splitRange').value.trim();const specific=document.getElementById('splitPages').value.trim();const splitAll=document.getElementById('splitAll').checked;const link=document.getElementById('splitDownloadLink');if(splitAll){for(let i=0;i<totalPages;i++){const newPdf=await PDFDocument.create();const [page]=await newPdf.copyPages(pdfDoc,[i]);newPdf.addPage(page);const pdfBytes=await newPdf.save();zip.file(`page-${i+1}.pdf`,pdfBytes);}const zipBlob=await zip.generateAsync({type:'blob'});const url=URL.createObjectURL(zipBlob);link.href=url;link.download='split-pages.zip';document.getElementById('splitResultText').innerText='All pages split successfully.';document.getElementById('splitResult').classList.add('show');}else{let pages=[]; if(range){const parts=range.split('-');const start=parseInt(parts[0]);const end=parseInt(parts[1]);for(let i=start;i<=end;i++) pages.push(i-1);}else if(specific){pages=specific.split(',').map(p=>parseInt(p.trim())-1);}else{alert('Enter range, specific pages, or select split all.');return;}const newPdf=await PDFDocument.create();for(let p of pages){if(p>=0&&p<totalPages){const [page]=await newPdf.copyPages(pdfDoc,[p]);newPdf.addPage(page);}}const pdfBytes=await newPdf.save();const blob=new Blob([pdfBytes],{type:'application/pdf'});const url=URL.createObjectURL(blob);l
