@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Remove PDF Password</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+body{
+    font-family: Arial;
+    text-align:center;
+    margin-top:40px;
+}
+.container{
+    width:420px;
+    margin:auto;
+    padding:25px;
+    border:1px solid #ddd;
+    border-radius:10px;
+}
+button{
+    margin-top:15px;
+    padding:10px 18px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Remove PDF Password</h2>
+
+<input type="file" id="pdfFile" accept="application/pdf"><br><br>
+
+<input type="password" id="password" placeholder="Enter PDF Password">
+
+<br>
+
+<button onclick="processPDF()">Unlock & Download</button>
+
+<p id="status"></p>
+
+</div>
+
+<script>
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+async function processPDF(){
+
+const fileInput = document.getElementById("pdfFile");
+const password = document.getElementById("password").value;
+const status = document.getElementById("status");
+
+if(!fileInput.files.length){
+    status.innerText = "Please select a PDF";
+    return;
+}
+
+status.innerText = "Processing...";
+
+const file = fileInput.files[0];
+const reader = new FileReader();
+
+reader.onload = async function(){
+
+    const typedarray = new Uint8Array(this.result);
+
+    try{
+
+        const pdf = await pdfjsLib.getDocument({
+            data: typedarray,
+            password: password
+        }).promise;
+
+        const { jsPDF } = window.jspdf;
+        const newPdf = new jsPDF();
+
+        for(let i=1;i<=pdf.numPages;i++){
+
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({scale:2});
+
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({
+                canvasContext: context,
+                viewport: viewport
+            }).promise;
+
+            const img = canvas.toDataURL("image/jpeg",1.0);
+
+            if(i>1) newPdf.addPage();
+
+            newPdf.addImage(
+                img,
+                "JPEG",
+                0,
+                0,
+                210,
+                297
+            );
+        }
+
+        newPdf.save("unlocked.pdf");
+
+        status.innerText = "Success! Download started.";
+
+    }
+    catch(err){
+        status.innerText = "Wrong password or invalid PDF.";
+    }
+
+};
+
+reader.readAsArrayBuffer(file);
+}
+
+</script>
+
+</body>
+</html>
